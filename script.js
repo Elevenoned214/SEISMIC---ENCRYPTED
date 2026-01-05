@@ -115,9 +115,7 @@ async function generateVideo(data) {
         }, 2000);
     };
     
-    
-    
-Copy
+
 
     // Start recording
     mediaRecorder.start();
