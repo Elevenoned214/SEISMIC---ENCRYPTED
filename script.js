@@ -1,86 +1,7 @@
-// ==========================================
-// FFMPEG - WEBM TO MP4 CONVERSION (OPTIMIZED)
-// ==========================================
-let ffmpegLoaded = false;
-let ffmpegInstance = null;
-
-async function loadFFmpeg() {
-    if (ffmpegLoaded && ffmpegInstance) {
-        return ffmpegInstance;
-    }
-    
-    try {
-        const { FFmpeg } = FFmpegWASM;
-        const ffmpeg = new FFmpeg();
-        
-        // Load with progress logging
-        await ffmpeg.load({
-            coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
-            wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm'
-        });
-        
-        ffmpegLoaded = true;
-        ffmpegInstance = ffmpeg;
-        console.log('✅ FFmpeg loaded successfully');
-        return ffmpeg;
-    } catch (err) {
-        console.error('FFmpeg load error:', err);
-        throw err;
-    }
-}
-
-async function convertWebMtoMP4(webmBlob, statusCallback) {
-    try {
-        statusCallback('Loading converter...');
-        const ffmpeg = await loadFFmpeg();
-        const { fetchFile } = FFmpegUtil;
-        
-        statusCallback('Converting to MP4...');
-        console.log('Starting conversion...');
-        
-        // Write input file
-        await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
-        console.log('Input file written');
-        
-        // Convert with optimized settings
-        await ffmpeg.exec([
-            '-i', 'input.webm',
-            '-c:v', 'libx264',      // H.264 codec
-            '-preset', 'ultrafast',  // Fastest encoding
-            '-crf', '28',            // Lower quality = faster
-            '-pix_fmt', 'yuv420p',   // iPhone compatible
-            '-movflags', '+faststart', // Web streaming
-            'output.mp4'
-        ]);
-        console.log('Conversion complete');
-        
-        // Read output
-        const data = await ffmpeg.readFile('output.mp4');
-        const mp4Blob = new Blob([data.buffer], { type: 'video/mp4' });
-        console.log('MP4 size:', (mp4Blob.size / 1024 / 1024).toFixed(2), 'MB');
-        
-        // Cleanup
-        await ffmpeg.deleteFile('input.webm');
-        await ffmpeg.deleteFile('output.mp4');
-        
-        statusCallback('Conversion complete!');
-        return mp4Blob;
-        
-    } catch (err) {
-        console.error('Conversion error:', err);
-        statusCallback('Conversion failed!');
-        return null;
-    }
-}
-
 // Global variables
 let uploadedPFP = null;
 let formData = {};
 let recordedWebMBlob = null;
-let recordedFrames = [];
-let canvasContext = null;
-let canvasElement = null;
-let pfpImage = null;
 
 // ==========================================
 // PFP UPLOAD
@@ -139,11 +60,6 @@ async function generateVideo(data) {
     const canvas = document.getElementById('recordCanvas');
     const ctx = canvas.getContext('2d');
     
-    // Store globally for GIF generation
-    canvasElement = canvas;
-    canvasContext = ctx;
-    recordedFrames = [];
-    
     // Set canvas size
     const canvasWidth = 1920;
     const canvasHeight = 1080;
@@ -152,7 +68,6 @@ async function generateVideo(data) {
     
     // Load PFP image
     const pfpImg = await loadImage(data.pfp);
-    pfpImage = pfpImg; // Store for GIF
     
     // Recording settings
     const fps = 30;
@@ -184,9 +99,9 @@ async function generateVideo(data) {
         // Store WebM blob globally
         recordedWebMBlob = blob;
         
-        // Show download buttons
+        // Show download section
         document.getElementById('statusText').textContent = 'Video complete!';
-        document.getElementById('downloadButtons').style.display = 'flex';
+        document.getElementById('downloadSection').style.display = 'block';
     };
     
 
@@ -475,10 +390,8 @@ function loadImage(src) {
 }
 
 // ==========================================
-// DOWNLOAD HANDLERS
+// DOWNLOAD HANDLER
 // ==========================================
-
-// WebM Download
 document.getElementById('downloadWebM').addEventListener('click', function() {
     if (!recordedWebMBlob) {
         alert('No video recorded!');
@@ -494,48 +407,14 @@ document.getElementById('downloadWebM').addEventListener('click', function() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    document.getElementById('statusText').textContent = '✅ WebM downloaded!';
-});
-
-// MP4 Conversion & Download
-document.getElementById('convertMP4').addEventListener('click', async function() {
-    if (!recordedWebMBlob) {
-        alert('No video recorded!');
-        return;
-    }
+    document.getElementById('statusText').textContent = '✅ Video downloaded!';
     
-    const btn = this;
-    const originalHTML = btn.innerHTML;
-    
-    try {
-        btn.disabled = true;
-        btn.innerHTML = '<span>Converting...</span>';
-        
-        // Convert WebM to MP4
-        const mp4Blob = await convertWebMtoMP4(recordedWebMBlob, (status) => {
-            document.getElementById('statusText').textContent = status;
-        });
-        
-        if (mp4Blob) {
-            // Download MP4
-            const url = URL.createObjectURL(mp4Blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `seismic-${formData.username}-${Date.now()}.mp4`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            document.getElementById('statusText').textContent = '✅ MP4 downloaded!';
-        } else {
-            document.getElementById('statusText').textContent = '❌ Conversion failed. Download WebM instead.';
-        }
-    } catch (err) {
-        console.error('MP4 conversion error:', err);
-        document.getElementById('statusText').textContent = '❌ Conversion failed. Download WebM instead.';
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalHTML;
-    }
+    // Reset after 2 seconds
+    setTimeout(() => {
+        document.getElementById('page2').classList.remove('active');
+        document.getElementById('page1').classList.add('active');
+        document.getElementById('statusText').textContent = 'Generating your video...';
+        document.getElementById('progressFill').style.width = '0%';
+        document.getElementById('downloadSection').style.display = 'none';
+    }, 2000);
 });

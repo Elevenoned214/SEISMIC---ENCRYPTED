@@ -92,32 +92,24 @@
             <div class="progress-bar">
                 <div class="progress-fill" id="progressFill"></div>
             </div>
-            <div class="download-buttons" id="downloadButtons" style="display: none;">
-                <button class="btn-download" id="downloadWebM">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <div class="download-section" id="downloadSection" style="display: none;">
+                <button class="btn-download-main" id="downloadWebM">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
-                    Download WebM
+                    Download Video
                 </button>
-                <button class="btn-download btn-mp4" id="convertMP4">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>
-                    Convert to MP4
-                    <span class="btn-subtitle">(for iPhone)</span>
-                </button>
+                <div class="help-text">
+                    <p>📱 <strong>iPhone users:</strong> Convert to MP4 at <a href="https://ezgif.com/webm-to-mp4" target="_blank">ezgif.com/webm-to-mp4</a></p>
+                    <p>✅ <strong>Works on:</strong> Twitter/X, Discord, YouTube, Android, Desktop</p>
+                </div>
             </div>
             <canvas id="recordCanvas" style="display: none;"></canvas>
         </div>
     </div>
 
-    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.7/dist/umd/ffmpeg.js"></script>
-    <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

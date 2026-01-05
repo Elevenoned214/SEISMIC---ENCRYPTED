@@ -382,56 +382,65 @@ body {
     border-radius: 10px;
 }
 
-.download-buttons {
-    display: flex;
-    gap: 20px;
-    justify-content: center;
-    margin-top: 30px;
+.download-section {
+    margin-top: 40px;
+    text-align: center;
 }
 
-.btn-download {
-    display: flex;
+.btn-download-main {
+    display: inline-flex;
+    flex-direction: column;
     align-items: center;
-    gap: 10px;
-    background: rgba(255, 255, 255, 0.95);
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.98);
     color: #8b5678;
     border: none;
-    padding: 15px 30px;
-    font-size: 1.1em;
+    padding: 25px 50px;
+    font-size: 1.3em;
     font-weight: 700;
-    border-radius: 12px;
+    border-radius: 16px;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.3);
     font-family: 'Inter', sans-serif;
 }
 
-.btn-download:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+.btn-download-main:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
     background: #ffffff;
 }
 
-.btn-download:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
+.btn-download-main svg {
+    width: 32px;
+    height: 32px;
 }
 
-.btn-download svg {
-    width: 24px;
-    height: 24px;
+.help-text {
+    margin-top: 25px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
-.btn-mp4 {
-    flex-direction: column;
-    gap: 5px;
+.help-text p {
+    color: #ffffff;
+    font-size: 0.95em;
+    margin: 10px 0;
+    line-height: 1.6;
 }
 
-.btn-subtitle {
-    font-size: 0.75em;
-    font-weight: 400;
-    opacity: 0.7;
+.help-text a {
+    color: #ffffff;
+    text-decoration: underline;
+    font-weight: 600;
+}
+
+.help-text a:hover {
+    color: #e8b4d4;
 }
 
 /* ==========================================
