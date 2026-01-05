@@ -119,42 +119,58 @@ async function generateVideo(data) {
     mediaRecorder.start();
     console.log('Recording started');
     
+    const startTime = Date.now();
     let currentFrame = 0;
     
-    // Use setInterval for consistent timing (not requestAnimationFrame)
+    // Use setInterval with PRECISE TIMING CHECK
     const renderInterval = setInterval(() => {
-        if (currentFrame >= totalFrames) {
+        const elapsedTime = (Date.now() - startTime) / 1000; // Seconds elapsed
+        const expectedFrame = Math.floor(elapsedTime * fps);
+        
+        // Stop when we reach target duration (PRECISE!)
+        if (elapsedTime >= duration) {
             clearInterval(renderInterval);
             console.log('All frames rendered. Stopping recording...');
-            mediaRecorder.stop();
+            // Wait a bit for last frames to be captured
+            setTimeout(() => {
+                mediaRecorder.stop();
+            }, 100);
             return;
         }
         
-        const progress = currentFrame / totalFrames;
-        
-        // Update progress bar
-        document.getElementById('progressFill').style.width = (progress * 100) + '%';
-        
-        // Clear canvas with dark background
-        ctx.fillStyle = '#1a1820';
-        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-        
-        // Animation phases
-        if (currentFrame < fps * 8) {
-            // Phase 1: Terminal typing (0-8s)
-            renderTerminalPhase(ctx, canvasWidth, canvasHeight, currentFrame, data);
-        } else if (currentFrame < fps * 9) {
-            // Phase 2: Fade transition (8-9s)
-            const fadeFrame = currentFrame - (fps * 8);
-            renderFadePhase(ctx, canvasWidth, canvasHeight, fadeFrame, fps, data);
-        } else {
-            // Phase 3: PFP + Code (9-12s)
-            const pfpFrame = currentFrame - (fps * 9);
-            renderPFPPhase(ctx, canvasWidth, canvasHeight, pfpImg, pfpFrame, fps);
+        // Skip if we're ahead (shouldn't happen but safety check)
+        if (currentFrame > expectedFrame) {
+            return;
         }
         
-        console.log(`Frame ${currentFrame}/${totalFrames} rendered`);
-        currentFrame++;
+        // Render multiple frames if we're behind
+        while (currentFrame <= expectedFrame && currentFrame < totalFrames) {
+            const progress = currentFrame / totalFrames;
+            
+            // Update progress bar
+            document.getElementById('progressFill').style.width = (progress * 100) + '%';
+            
+            // Clear canvas with dark background
+            ctx.fillStyle = '#1a1820';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            
+            // Animation phases based on CURRENT FRAME
+            if (currentFrame < fps * 8) {
+                // Phase 1: Terminal typing (0-8s)
+                renderTerminalPhase(ctx, canvasWidth, canvasHeight, currentFrame, data);
+            } else if (currentFrame < fps * 9) {
+                // Phase 2: Fade transition (8-9s)
+                const fadeFrame = currentFrame - (fps * 8);
+                renderFadePhase(ctx, canvasWidth, canvasHeight, fadeFrame, fps, data);
+            } else {
+                // Phase 3: PFP + Code (9-14s)
+                const pfpFrame = currentFrame - (fps * 9);
+                renderPFPPhase(ctx, canvasWidth, canvasHeight, pfpImg, pfpFrame, fps);
+            }
+            
+            console.log(`Frame ${currentFrame}/${totalFrames} rendered (elapsed: ${elapsedTime.toFixed(2)}s)`);
+            currentFrame++;
+        }
     }, frameInterval);
 }
 
