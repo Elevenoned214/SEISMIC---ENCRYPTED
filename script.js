@@ -115,63 +115,77 @@ async function generateVideo(data) {
         }, 2000);
     };
     
+    
+    
+Copy
+
     // Start recording
     mediaRecorder.start();
     console.log('Recording started');
     
     const startTime = Date.now();
     let currentFrame = 0;
+    let lastFrameTime = Date.now();
     
-    // Use setInterval with PRECISE TIMING CHECK
+    // Use setInterval with PRECISE TIMING + MOBILE FRAME PACING
     const renderInterval = setInterval(() => {
-        const elapsedTime = (Date.now() - startTime) / 1000; // Seconds elapsed
+        const now = Date.now();
+        const elapsedTime = (now - startTime) / 1000;
         const expectedFrame = Math.floor(elapsedTime * fps);
         
-        // Stop when we reach target duration (PRECISE!)
+        // MOBILE FIX: Enforce minimum time between frames
+        const timeSinceLastFrame = now - lastFrameTime;
+        const minFrameTime = frameInterval * 0.9; // 30ms minimum
+        
+        if (timeSinceLastFrame < minFrameTime) {
+            return; // Skip this tick - too fast!
+        }
+        
+        // Stop at target duration
         if (elapsedTime >= duration) {
             clearInterval(renderInterval);
-            console.log('All frames rendered. Stopping recording...');
-            // Wait a bit for last frames to be captured
-            setTimeout(() => {
-                mediaRecorder.stop();
-            }, 100);
+            console.log(`Done! ${elapsedTime.toFixed(2)}s, ${currentFrame} frames`);
+            setTimeout(() => mediaRecorder.stop(), 200);
             return;
         }
         
-        // Skip if we're ahead (shouldn't happen but safety check)
+        // Don't go ahead
         if (currentFrame > expectedFrame) {
             return;
         }
         
-        // Render multiple frames if we're behind
-        while (currentFrame <= expectedFrame && currentFrame < totalFrames) {
+        // Render frames (max 3 per tick on mobile)
+        let framesRendered = 0;
+        const maxFramesPerTick = 3;
+        
+        while (currentFrame <= expectedFrame && currentFrame < totalFrames && framesRendered < maxFramesPerTick) {
             const progress = currentFrame / totalFrames;
-            
-            // Update progress bar
             document.getElementById('progressFill').style.width = (progress * 100) + '%';
             
-            // Clear canvas with dark background
             ctx.fillStyle = '#1a1820';
             ctx.fillRect(0, 0, canvasWidth, canvasHeight);
             
-            // Animation phases based on CURRENT FRAME
             if (currentFrame < fps * 8) {
-                // Phase 1: Terminal typing (0-8s)
                 renderTerminalPhase(ctx, canvasWidth, canvasHeight, currentFrame, data);
             } else if (currentFrame < fps * 9) {
-                // Phase 2: Fade transition (8-9s)
                 const fadeFrame = currentFrame - (fps * 8);
                 renderFadePhase(ctx, canvasWidth, canvasHeight, fadeFrame, fps, data);
             } else {
-                // Phase 3: PFP + Code (9-14s)
                 const pfpFrame = currentFrame - (fps * 9);
                 renderPFPPhase(ctx, canvasWidth, canvasHeight, pfpImg, pfpFrame, fps);
             }
             
-            console.log(`Frame ${currentFrame}/${totalFrames} rendered (elapsed: ${elapsedTime.toFixed(2)}s)`);
+            if (currentFrame % 30 === 0) {
+                console.log(`Frame ${currentFrame}/${totalFrames} (${elapsedTime.toFixed(2)}s)`);
+            }
+            
             currentFrame++;
+            framesRendered++;
         }
+        
+        lastFrameTime = now;
     }, frameInterval);
+
 }
 
 // ==========================================
