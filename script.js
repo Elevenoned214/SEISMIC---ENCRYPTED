@@ -1,3 +1,58 @@
+// ==========================================
+// FFMPEG - WEBM TO MP4 CONVERSION
+// ==========================================
+let ffmpegLoaded = false;
+const { FFmpeg } = FFmpegWASM;
+const { fetchFile } = FFmpegUtil;
+const ffmpeg = new FFmpeg();
+
+async function loadFFmpeg() {
+    if (!ffmpegLoaded) {
+        await ffmpeg.load({
+            coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
+            wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm'
+        });
+        ffmpegLoaded = true;
+        console.log('✅ FFmpeg loaded');
+    }
+}
+
+async function convertWebMtoMP4(webmBlob, statusCallback) {
+    try {
+        if (!ffmpegLoaded) {
+            statusCallback('Loading converter...');
+            await loadFFmpeg();
+        }
+        
+        statusCallback('Converting to MP4...');
+        
+        await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
+        
+        await ffmpeg.exec([
+            '-i', 'input.webm',
+            '-c:v', 'libx264',
+            '-preset', 'fast',
+            '-crf', '22',
+            '-pix_fmt', 'yuv420p',
+            'output.mp4'
+        ]);
+        
+        const data = await ffmpeg.readFile('output.mp4');
+        const mp4Blob = new Blob([data.buffer], { type: 'video/mp4' });
+        
+        await ffmpeg.deleteFile('input.webm');
+        await ffmpeg.deleteFile('output.mp4');
+        
+        statusCallback('Conversion complete!');
+        return mp4Blob;
+        
+    } catch (err) {
+        console.error('Conversion error:', err);
+        statusCallback('Conversion failed!');
+        return null;
+    }
+}
+
 // Global variables
 let uploadedPFP = null;
 let formData = {};
@@ -90,23 +145,47 @@ async function generateVideo(data) {
         }
     };
     
-    mediaRecorder.onstop = () => {
+    mediaRecorder.onstop = async () => {
         console.log('Recording stopped. Total chunks:', chunks.length);
-        const blob = new Blob(chunks, { type: 'video/webm' });
-        console.log('Video blob size:', blob.size, 'bytes');
-        const url = URL.createObjectURL(blob);
+        const webmBlob = new Blob(chunks, { type: 'video/webm' });
+        console.log('WebM size:', (webmBlob.size / 1024 / 1024).toFixed(2), 'MB');
         
-        // Auto-download
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `seismic-${data.username}-${Date.now()}.webm`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        // Convert WebM to MP4 for iPhone compatibility
+        document.getElementById('statusText').textContent = 'Converting to MP4...';
         
-        // Show success and reset
-        document.getElementById('statusText').textContent = '✅ Video downloaded!';
+        const mp4Blob = await convertWebMtoMP4(webmBlob, (status) => {
+            document.getElementById('statusText').textContent = status;
+        });
+        
+        if (mp4Blob) {
+            console.log('MP4 size:', (mp4Blob.size / 1024 / 1024).toFixed(2), 'MB');
+            
+            // Download MP4
+            const url = URL.createObjectURL(mp4Blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `seismic-${data.username}-${Date.now()}.mp4`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            document.getElementById('statusText').textContent = '✅ MP4 downloaded!';
+        } else {
+            // Fallback: download WebM if conversion fails
+            const url = URL.createObjectURL(webmBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `seismic-${data.username}-${Date.now()}.webm`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            document.getElementById('statusText').textContent = '⚠️ Downloaded as WebM';
+        }
+        
+        // Reset after 2 seconds
         setTimeout(() => {
             document.getElementById('page2').classList.remove('active');
             document.getElementById('page1').classList.add('active');
