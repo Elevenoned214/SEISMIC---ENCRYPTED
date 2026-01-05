@@ -423,6 +423,17 @@ body {
     height: 24px;
 }
 
+.btn-mp4 {
+    flex-direction: column;
+    gap: 5px;
+}
+
+.btn-subtitle {
+    font-size: 0.75em;
+    font-weight: 400;
+    opacity: 0.7;
+}
+
 /* ==========================================
    RESPONSIVE
 ========================================== */
