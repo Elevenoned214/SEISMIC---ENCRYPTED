@@ -1,61 +1,11 @@
-// ==========================================
-// FFMPEG - WEBM TO MP4 CONVERSION
-// ==========================================
-let ffmpegLoaded = false;
-const { FFmpeg } = FFmpegWASM;
-const { fetchFile } = FFmpegUtil;
-const ffmpeg = new FFmpeg();
-
-async function loadFFmpeg() {
-    if (!ffmpegLoaded) {
-        await ffmpeg.load({
-            coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
-            wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm'
-        });
-        ffmpegLoaded = true;
-        console.log('✅ FFmpeg loaded');
-    }
-}
-
-async function convertWebMtoMP4(webmBlob, statusCallback) {
-    try {
-        if (!ffmpegLoaded) {
-            statusCallback('Loading converter...');
-            await loadFFmpeg();
-        }
-        
-        statusCallback('Converting to MP4...');
-        
-        await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
-        
-        await ffmpeg.exec([
-            '-i', 'input.webm',
-            '-c:v', 'libx264',
-            '-preset', 'fast',
-            '-crf', '22',
-            '-pix_fmt', 'yuv420p',
-            'output.mp4'
-        ]);
-        
-        const data = await ffmpeg.readFile('output.mp4');
-        const mp4Blob = new Blob([data.buffer], { type: 'video/mp4' });
-        
-        await ffmpeg.deleteFile('input.webm');
-        await ffmpeg.deleteFile('output.mp4');
-        
-        statusCallback('Conversion complete!');
-        return mp4Blob;
-        
-    } catch (err) {
-        console.error('Conversion error:', err);
-        statusCallback('Conversion failed!');
-        return null;
-    }
-}
-
 // Global variables
 let uploadedPFP = null;
 let formData = {};
+let recordedWebMBlob = null;
+let recordedFrames = [];
+let canvasContext = null;
+let canvasElement = null;
+let pfpImage = null;
 
 // ==========================================
 // PFP UPLOAD
@@ -114,6 +64,11 @@ async function generateVideo(data) {
     const canvas = document.getElementById('recordCanvas');
     const ctx = canvas.getContext('2d');
     
+    // Store globally for GIF generation
+    canvasElement = canvas;
+    canvasContext = ctx;
+    recordedFrames = [];
+    
     // Set canvas size
     const canvasWidth = 1920;
     const canvasHeight = 1080;
@@ -122,6 +77,7 @@ async function generateVideo(data) {
     
     // Load PFP image
     const pfpImg = await loadImage(data.pfp);
+    pfpImage = pfpImg; // Store for GIF
     
     // Recording settings
     const fps = 30;
@@ -145,53 +101,17 @@ async function generateVideo(data) {
         }
     };
     
-    mediaRecorder.onstop = async () => {
+    mediaRecorder.onstop = () => {
         console.log('Recording stopped. Total chunks:', chunks.length);
-        const webmBlob = new Blob(chunks, { type: 'video/webm' });
-        console.log('WebM size:', (webmBlob.size / 1024 / 1024).toFixed(2), 'MB');
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        console.log('Video blob size:', (blob.size / 1024 / 1024).toFixed(2), 'MB');
         
-        // Convert WebM to MP4 for iPhone compatibility
-        document.getElementById('statusText').textContent = 'Converting to MP4...';
+        // Store WebM blob globally
+        recordedWebMBlob = blob;
         
-        const mp4Blob = await convertWebMtoMP4(webmBlob, (status) => {
-            document.getElementById('statusText').textContent = status;
-        });
-        
-        if (mp4Blob) {
-            console.log('MP4 size:', (mp4Blob.size / 1024 / 1024).toFixed(2), 'MB');
-            
-            // Download MP4
-            const url = URL.createObjectURL(mp4Blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `seismic-${data.username}-${Date.now()}.mp4`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            document.getElementById('statusText').textContent = '✅ MP4 downloaded!';
-        } else {
-            // Fallback: download WebM if conversion fails
-            const url = URL.createObjectURL(webmBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `seismic-${data.username}-${Date.now()}.webm`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            document.getElementById('statusText').textContent = '⚠️ Downloaded as WebM';
-        }
-        
-        // Reset after 2 seconds
-        setTimeout(() => {
-            document.getElementById('page2').classList.remove('active');
-            document.getElementById('page1').classList.add('active');
-            document.getElementById('statusText').textContent = 'Generating your video...';
-            document.getElementById('progressFill').style.width = '0%';
-        }, 2000);
+        // Show download buttons
+        document.getElementById('statusText').textContent = 'Video complete!';
+        document.getElementById('downloadButtons').style.display = 'flex';
     };
     
 
@@ -476,5 +396,143 @@ function loadImage(src) {
         img.onload = () => resolve(img);
         img.onerror = reject;
         img.src = src;
+    });
+}
+
+// ==========================================
+// DOWNLOAD HANDLERS
+// ==========================================
+
+// WebM Download
+document.getElementById('downloadWebM').addEventListener('click', function() {
+    if (!recordedWebMBlob) {
+        alert('No video recorded!');
+        return;
+    }
+    
+    const url = URL.createObjectURL(recordedWebMBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `seismic-${formData.username}-${Date.now()}.webm`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    document.getElementById('statusText').textContent = '✅ WebM downloaded!';
+});
+
+// GIF Download
+document.getElementById('downloadGIF').addEventListener('click', async function() {
+    const btn = this;
+    const originalText = btn.textContent;
+    
+    try {
+        btn.disabled = true;
+        document.getElementById('statusText').textContent = 'Generating GIF...';
+        
+        // Generate GIF from canvas
+        const gifBlob = await generateGIF();
+        
+        if (gifBlob) {
+            const url = URL.createObjectURL(gifBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `seismic-${formData.username}-${Date.now()}.gif`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            document.getElementById('statusText').textContent = '✅ GIF downloaded!';
+        } else {
+            document.getElementById('statusText').textContent = '❌ GIF generation failed';
+        }
+    } catch (err) {
+        console.error('GIF error:', err);
+        document.getElementById('statusText').textContent = '❌ GIF generation failed';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+});
+
+// ==========================================
+// GIF GENERATION
+// ==========================================
+async function generateGIF() {
+    return new Promise((resolve, reject) => {
+        try {
+            const gif = new GIF({
+                workers: 2,
+                quality: 10,
+                width: 960, // Half size for smaller file
+                height: 540,
+                workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js'
+            });
+            
+            const fps = 30;
+            const duration = 14;
+            const totalFrames = fps * duration;
+            const frameStep = 2; // Skip every other frame (15fps GIF)
+            
+            // Re-render frames at smaller size for GIF
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = 960;
+            tempCanvas.height = 540;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            console.log('Rendering GIF frames...');
+            
+            for (let frame = 0; frame < totalFrames; frame += frameStep) {
+                // Clear temp canvas
+                tempCtx.fillStyle = '#1a1820';
+                tempCtx.fillRect(0, 0, 960, 540);
+                
+                // Scale down and render frame
+                tempCtx.save();
+                tempCtx.scale(0.5, 0.5);
+                
+                if (frame < fps * 8) {
+                    renderTerminalPhase(tempCtx, 1920, 1080, frame, formData);
+                } else if (frame < fps * 9) {
+                    const fadeFrame = frame - (fps * 8);
+                    renderFadePhase(tempCtx, 1920, 1080, fadeFrame, fps, formData);
+                } else {
+                    const pfpFrame = frame - (fps * 9);
+                    renderPFPPhase(tempCtx, 1920, 1080, pfpImage, pfpFrame, fps);
+                }
+                
+                tempCtx.restore();
+                
+                // Add frame to GIF (every 2 frames = 15fps)
+                gif.addFrame(tempCanvas, { delay: 133, copy: true }); // 133ms = ~7.5fps
+                
+                // Update status every 30 frames
+                if (frame % 30 === 0) {
+                    const progress = Math.round((frame / totalFrames) * 100);
+                    document.getElementById('statusText').textContent = `Generating GIF... ${progress}%`;
+                }
+            }
+            
+            console.log('Rendering GIF...');
+            document.getElementById('statusText').textContent = 'Rendering GIF...';
+            
+            gif.on('finished', function(blob) {
+                console.log('GIF complete:', (blob.size / 1024 / 1024).toFixed(2), 'MB');
+                resolve(blob);
+            });
+            
+            gif.on('progress', function(p) {
+                const percent = Math.round(p * 100);
+                document.getElementById('statusText').textContent = `Rendering GIF... ${percent}%`;
+            });
+            
+            gif.render();
+            
+        } catch (err) {
+            console.error('GIF generation error:', err);
+            reject(err);
+        }
     });
 }
