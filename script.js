@@ -1,0 +1,373 @@
+// Global variables
+let uploadedPFP = null;
+let formData = {};
+
+// ==========================================
+// PFP UPLOAD
+// ==========================================
+document.getElementById('pfpPreview').addEventListener('click', function() {
+    document.getElementById('pfpInput').click();
+});
+
+document.getElementById('pfpInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            uploadedPFP = event.target.result;
+            const img = document.getElementById('pfpImage');
+            img.src = uploadedPFP;
+            img.style.display = 'block';
+            document.querySelector('.pfp-placeholder').style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
+// ==========================================
+// FORM SUBMIT
+// ==========================================
+document.getElementById('communityForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    if (!uploadedPFP) {
+        alert('Please upload a profile picture!');
+        return;
+    }
+    
+    formData = {
+        username: document.getElementById('username').value,
+        region: document.getElementById('region').value,
+        magnitude: document.getElementById('magnitude').value,
+        pfp: uploadedPFP
+    };
+    
+    // Switch to recording page
+    document.getElementById('page1').classList.remove('active');
+    document.getElementById('page2').classList.add('active');
+    
+    // Start video generation
+    setTimeout(() => {
+        generateVideo(formData);
+    }, 500);
+});
+
+// ==========================================
+// VIDEO GENERATION (CANVAS RECORDING - FIXED)
+// ==========================================
+async function generateVideo(data) {
+    const canvas = document.getElementById('recordCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Set canvas size
+    const canvasWidth = 1920;
+    const canvasHeight = 1080;
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    
+    // Load PFP image
+    const pfpImg = await loadImage(data.pfp);
+    
+    // Recording settings
+    const fps = 30;
+    const duration = 14; // 12 seconds
+    const totalFrames = fps * duration;
+    const frameInterval = 1000 / fps; // 33.33ms per frame
+    
+    // Setup MediaRecorder with canvas stream
+    const stream = canvas.captureStream(fps);
+    const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'video/webm;codecs=vp9',
+        videoBitsPerSecond: 8000000 // 8 Mbps
+    });
+    
+    const chunks = [];
+    
+    mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+            chunks.push(e.data);
+            console.log('Chunk received:', e.data.size, 'bytes');
+        }
+    };
+    
+    mediaRecorder.onstop = () => {
+        console.log('Recording stopped. Total chunks:', chunks.length);
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        console.log('Video blob size:', blob.size, 'bytes');
+        const url = URL.createObjectURL(blob);
+        
+        // Auto-download
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `seismic-${data.username}-${Date.now()}.webm`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        // Show success and reset
+        document.getElementById('statusText').textContent = '✅ Video downloaded!';
+        setTimeout(() => {
+            document.getElementById('page2').classList.remove('active');
+            document.getElementById('page1').classList.add('active');
+            document.getElementById('statusText').textContent = 'Generating your video...';
+            document.getElementById('progressFill').style.width = '0%';
+        }, 2000);
+    };
+    
+    // Start recording
+    mediaRecorder.start();
+    console.log('Recording started');
+    
+    let currentFrame = 0;
+    
+    // Use setInterval for consistent timing (not requestAnimationFrame)
+    const renderInterval = setInterval(() => {
+        if (currentFrame >= totalFrames) {
+            clearInterval(renderInterval);
+            console.log('All frames rendered. Stopping recording...');
+            mediaRecorder.stop();
+            return;
+        }
+        
+        const progress = currentFrame / totalFrames;
+        
+        // Update progress bar
+        document.getElementById('progressFill').style.width = (progress * 100) + '%';
+        
+        // Clear canvas with dark background
+        ctx.fillStyle = '#1a1820';
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+        
+        // Animation phases
+        if (currentFrame < fps * 8) {
+            // Phase 1: Terminal typing (0-8s)
+            renderTerminalPhase(ctx, canvasWidth, canvasHeight, currentFrame, data);
+        } else if (currentFrame < fps * 9) {
+            // Phase 2: Fade transition (8-9s)
+            const fadeFrame = currentFrame - (fps * 8);
+            renderFadePhase(ctx, canvasWidth, canvasHeight, fadeFrame, fps, data);
+        } else {
+            // Phase 3: PFP + Code (9-12s)
+            const pfpFrame = currentFrame - (fps * 9);
+            renderPFPPhase(ctx, canvasWidth, canvasHeight, pfpImg, pfpFrame, fps);
+        }
+        
+        console.log(`Frame ${currentFrame}/${totalFrames} rendered`);
+        currentFrame++;
+    }, frameInterval);
+}
+
+// ==========================================
+// PHASE 1: TERMINAL TYPING
+// ==========================================
+function renderTerminalPhase(ctx, width, height, frame, data) {
+    // Draw terminal background with gradient
+    const gradient = ctx.createLinearGradient(0, 0, width, height);
+    gradient.addColorStop(0, '#2d2a35');
+    gradient.addColorStop(0.6, '#1a1820');
+    gradient.addColorStop(1, '#0f0e12');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+    
+    // Terminal header
+    drawTerminalHeader(ctx, width);
+    
+    // Terminal text lines with typing effect (FIXED TIMING)
+    const lines = [
+        { frame: 15, text: '// Initializing SEISMIC System...', color: '#6a9955' },
+        { frame: 40, text: 'const blockchain = initSeismic();', color: '#dcdcaa' },
+        { frame: 60, text: '✓ Privacy-enabled blockchain active', color: '#4ec9b0' },
+        { frame: 75, text: '', color: '#d4d4d4' },
+        { frame: 85, text: '// Loading member profile...', color: '#6a9955' },
+        { frame: 105, text: 'const member = {', color: '#dcdcaa' },
+        { frame: 125, text: `  username: "${data.username}",`, color: '#ce9178' },
+        { frame: 145, text: `  region: "${data.region}",`, color: '#ce9178' },
+        { frame: 165, text: `  magnitude: "${data.magnitude}"`, color: '#ce9178' },
+        { frame: 180, text: '};', color: '#dcdcaa' },
+        { frame: 190, text: '', color: '#d4d4d4' },
+        { frame: 200, text: '// Verifying credentials...', color: '#6a9955' },
+        { frame: 215, text: 'const verification = verify(member);', color: '#dcdcaa' },
+        { frame: 225, text: '✓ Member verified', color: '#4ec9b0' },
+        { frame: 230, text: '', color: '#d4d4d4' },
+        { frame: 235, text: 'console.log("Welcome to SEISMIC");', color: '#9cdcfe' },
+        { frame: 238, text: '// Building products users can trust', color: '#6a9955' }
+    ];
+    
+    ctx.font = '34px "Fira Code", monospace';
+    ctx.textAlign = 'left';
+    
+    let yPos = 180;
+    lines.forEach(line => {
+        if (frame >= line.frame) {
+            ctx.fillStyle = line.color;
+            ctx.fillText(line.text, 100, yPos);
+        }
+        yPos += 40;
+    });
+}
+
+// ==========================================
+// PHASE 2: FADE TRANSITION
+// ==========================================
+function renderFadePhase(ctx, width, height, frame, fps, data) {
+    const progress = frame / fps; // 0 to 1
+    
+    // First draw terminal (fading out)
+    renderTerminalPhase(ctx, width, height, fps * 8 - 1, data);
+    
+    // Then fade to black over it
+    ctx.fillStyle = `rgba(26, 24, 32, ${progress})`;
+    ctx.fillRect(0, 0, width, height);
+}
+
+// ==========================================
+// PHASE 3: PFP + CODE
+// ==========================================
+function renderPFPPhase(ctx, width, height, pfpImg, frame, fps) {
+    // Background gradient
+    const gradient = ctx.createLinearGradient(0, 0, width, height);
+    gradient.addColorStop(0, '#2d2a35');
+    gradient.addColorStop(0.6, '#1a1820');
+    gradient.addColorStop(1, '#0f0e12');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+    
+    // Terminal header
+    drawTerminalHeader(ctx, width);
+    
+    // PFP FILLS ENTIRE TERMINAL (FULL SIZE - NO MARGINS!)
+    const headerHeight = 130; // Header space
+    const pfpX = 0; // No left margin
+    const pfpY = headerHeight; // Start right after header
+    const pfpWidth = width; // FULL WIDTH
+    const pfpHeight = height - headerHeight; // FULL HEIGHT
+    
+    // Draw PFP with cover fit (like CSS object-fit: cover)
+    ctx.save();
+    ctx.globalAlpha = Math.min(frame / 30, 1); // Fade in over 1 second
+    
+    // Calculate scale to cover entire area
+    const imgRatio = pfpImg.width / pfpImg.height;
+    const areaRatio = pfpWidth / pfpHeight;
+    
+    let drawWidth, drawHeight, drawX, drawY;
+    
+    if (imgRatio > areaRatio) {
+        // Image wider than area - fit height
+        drawHeight = pfpHeight;
+        drawWidth = pfpHeight * imgRatio;
+        drawX = pfpX - (drawWidth - pfpWidth) / 2; // Center horizontally
+        drawY = pfpY;
+    } else {
+        // Image taller than area - fit width
+        drawWidth = pfpWidth;
+        drawHeight = pfpWidth / imgRatio;
+        drawX = pfpX;
+        drawY = pfpY - (drawHeight - pfpHeight) / 2; // Center vertically
+    }
+    
+    // Clip to terminal area only
+    ctx.beginPath();
+    ctx.rect(pfpX, pfpY, pfpWidth, pfpHeight);
+    ctx.clip();
+    
+    // Draw PFP
+    ctx.drawImage(pfpImg, drawX, drawY, drawWidth, drawHeight);
+    ctx.restore();
+    
+    // Draw encrypted code overlay
+    if (frame > 30) {
+        drawEncryptedCode(ctx, pfpX, pfpY, pfpWidth, pfpHeight, frame);
+    }
+}
+
+// ==========================================
+// HELPERS
+// ==========================================
+function drawTerminalHeader(ctx, width) {
+    // Header background
+    ctx.fillStyle = '#d893c3ff';
+    ctx.fillRect(0, 50, width, 80);
+    
+    // Dots
+    const dotY = 90;
+    ctx.fillStyle = '#ff5f56';
+    ctx.beginPath();
+    ctx.arc(50, dotY, 8, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.fillStyle = '#ffbd2e';
+    ctx.beginPath();
+    ctx.arc(90, dotY, 8, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.fillStyle = '#27c93f';
+    ctx.beginPath();
+    ctx.arc(130, dotY, 8, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Title
+    ctx.fillStyle = '#ffffffff';
+    ctx.font = '32px "Fira Code", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('SEISMIC://system', width / 2, 95);
+}
+
+function drawEncryptedCode(ctx, x, y, w, h, frame) {
+    const chars = 'S$E@I1{S}M#I!C[';
+    const fontSize = 32;
+    const columns = Math.floor(w / fontSize);
+    const rows = Math.floor(h / fontSize);
+    
+    ctx.font = `${fontSize}px "Fira Code", monospace`;
+    
+    // Pulsing opacity
+    const time = frame * 0.05;
+    const sineValue = Math.sin(time);
+    const opacity = sineValue > 0 
+        ? 0.7 + (sineValue * sineValue * 0.15)
+        : 0.7 + (sineValue * 0.15);
+    
+    // ANIMATED NEON PULSE - Multiple colors
+    const glowIntensity = opacity * 30; // Stronger pulse
+    const glowColor = sineValue > 0 
+        ? '#ffffff' // Pink when bright
+        : '#ffffff'; // Purple when dim
+    
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = glowIntensity;
+    ctx.fillStyle = '#a86b94'; // White text for neon effect
+    ctx.globalAlpha = opacity;
+    
+    // Draw grid
+    for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < columns; col++) {
+            const charIndex = (row * columns + col + Math.floor(frame / 10)) % chars.length;
+            const char = chars[charIndex];
+            const charX = x + col * fontSize + 19;
+            const charY = y + (row + 1) * fontSize;
+            
+            if (charY > y && charY < y + h) {
+                // Draw with double glow for extra neon effect
+                ctx.shadowBlur = glowIntensity * 1.5;
+                ctx.fillText(char, charX, charY);
+                ctx.shadowBlur = glowIntensity * 0.5;
+                ctx.fillText(char, charX, charY);
+            }
+        }
+    }
+    
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
+    ctx.globalAlpha = 1.0;
+}
+
+function loadImage(src) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+    });
+}

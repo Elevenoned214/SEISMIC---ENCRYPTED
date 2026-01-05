@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEISMIC - ENCRYPTED</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- PAGE 1: FORM -->
+    <div id="page1" class="page active">
+        <div class="form-wrapper">
+            <div class="form-card">
+                <h1>SEISMIC</h1>
+                
+                <form id="communityForm">
+                    <div class="form-group pfp-group">
+                        <label>Profile Picture</label>
+                        <div class="pfp-upload-container">
+                            <input type="file" id="pfpInput" accept="image/*" required style="display: none;">
+                            <div class="pfp-preview" id="pfpPreview">
+                                <span class="pfp-placeholder">Click to Upload</span>
+                                <img id="pfpImage" style="display: none;">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" name="username" required placeholder="Your username">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="region">Region</label>
+                        <select id="region" name="region" required>
+                            <option value="">Select your region...</option>
+                            <option value="Indonesian">Indonesian</option>
+                            <option value="Indian">Indian</option>
+                            <option value="Chinese">Chinese</option>
+                            <option value="Vietnamese">Vietnamese</option>
+                            <option value="Pakistani">Pakistani</option>
+                            <option value="Bangladeshi">Bangladeshi</option>
+                            <option value="Japanese">Japanese</option>
+                            <option value="Filipino">Filipino</option>
+                            <option value="Thai">Thai</option>
+                            <option value="Korean">Korean</option>
+                            <option value="Turkish">Turkish</option>
+                            <option value="Iranian">Iranian</option>
+                            <option value="Russian">Russian</option>
+                            <option value="Ukrainian">Ukrainian</option>
+                            <option value="Nigerian">Nigerian</option>
+                            <option value="Egyptian">Egyptian</option>
+                            <option value="Brazilian">Brazilian</option>
+                            <option value="Mexican">Mexican</option>
+                            <option value="French">French</option>
+                            <option value="Italian">Italian</option>
+                            <option value="Polish">Polish</option>
+                            <option value="Portuguese">Portuguese</option>
+                            <option value="Moroccan">Moroccan</option>
+                            <option value="Arabic">Arabic</option>
+                            <option value="Singapore/Malaysia">Singapore/Malaysia</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="magnitude">Magnitude</label>
+                        <select id="magnitude" name="magnitude" required>
+                            <option value="">Select magnitude...</option>
+                            <option value="Magnitude 1">Magnitude 1</option>
+                            <option value="Magnitude 2">Magnitude 2</option>
+                            <option value="Magnitude 3">Magnitude 3</option>
+                            <option value="Magnitude 4">Magnitude 4</option>
+                            <option value="Magnitude 5">Magnitude 5</option>
+                            <option value="Magnitude 6">Magnitude 6</option>
+                            <option value="Magnitude 7">Magnitude 7</option>
+                            <option value="Magnitude 8">Magnitude 8</option>
+                            <option value="Magnitude 9">Magnitude 9</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn-generate">GENERATE VIDEO</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE 2: RECORDING -->
+    <div id="page2" class="page">
+        <div class="recording-wrapper">
+            <div class="status-text" id="statusText">Generating your video...</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <canvas id="recordCanvas" style="display: none;"></canvas>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
