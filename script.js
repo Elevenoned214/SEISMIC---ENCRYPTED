@@ -458,68 +458,87 @@ document.getElementById('downloadGIF').addEventListener('click', async function(
 });
 
 // ==========================================
-// GIF GENERATION
+// GIF GENERATION (OPTIMIZED)
 // ==========================================
 async function generateGIF() {
     return new Promise((resolve, reject) => {
         try {
+            // Check if GIF library loaded
+            if (typeof GIF === 'undefined') {
+                alert('GIF library not loaded. Please refresh the page.');
+                reject(new Error('GIF library not loaded'));
+                return;
+            }
+            
             const gif = new GIF({
                 workers: 2,
-                quality: 10,
-                width: 960, // Half size for smaller file
-                height: 540,
-                workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js'
+                quality: 15, // Lower quality for faster generation
+                width: 480, // Quarter size for smaller file
+                height: 270,
+                workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js',
+                debug: false
             });
             
             const fps = 30;
             const duration = 14;
             const totalFrames = fps * duration;
-            const frameStep = 2; // Skip every other frame (15fps GIF)
+            const frameStep = 6; // Take every 6th frame (5fps GIF)
             
             // Re-render frames at smaller size for GIF
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = 960;
-            tempCanvas.height = 540;
+            tempCanvas.width = 480;
+            tempCanvas.height = 270;
             const tempCtx = tempCanvas.getContext('2d');
             
             console.log('Rendering GIF frames...');
+            let framesAdded = 0;
             
             for (let frame = 0; frame < totalFrames; frame += frameStep) {
-                // Clear temp canvas
-                tempCtx.fillStyle = '#1a1820';
-                tempCtx.fillRect(0, 0, 960, 540);
-                
-                // Scale down and render frame
-                tempCtx.save();
-                tempCtx.scale(0.5, 0.5);
-                
-                if (frame < fps * 8) {
-                    renderTerminalPhase(tempCtx, 1920, 1080, frame, formData);
-                } else if (frame < fps * 9) {
-                    const fadeFrame = frame - (fps * 8);
-                    renderFadePhase(tempCtx, 1920, 1080, fadeFrame, fps, formData);
-                } else {
-                    const pfpFrame = frame - (fps * 9);
-                    renderPFPPhase(tempCtx, 1920, 1080, pfpImage, pfpFrame, fps);
-                }
-                
-                tempCtx.restore();
-                
-                // Add frame to GIF (every 2 frames = 15fps)
-                gif.addFrame(tempCanvas, { delay: 133, copy: true }); // 133ms = ~7.5fps
-                
-                // Update status every 30 frames
-                if (frame % 30 === 0) {
+                try {
+                    // Clear temp canvas
+                    tempCtx.fillStyle = '#1a1820';
+                    tempCtx.fillRect(0, 0, 480, 270);
+                    
+                    // Scale down and render frame
+                    tempCtx.save();
+                    tempCtx.scale(0.25, 0.25); // Quarter size
+                    
+                    if (frame < fps * 8) {
+                        renderTerminalPhase(tempCtx, 1920, 1080, frame, formData);
+                    } else if (frame < fps * 9) {
+                        const fadeFrame = frame - (fps * 8);
+                        renderFadePhase(tempCtx, 1920, 1080, fadeFrame, fps, formData);
+                    } else {
+                        const pfpFrame = frame - (fps * 9);
+                        renderPFPPhase(tempCtx, 1920, 1080, pfpImage, pfpFrame, fps);
+                    }
+                    
+                    tempCtx.restore();
+                    
+                    // Add frame to GIF (200ms delay = 5fps)
+                    gif.addFrame(tempCanvas, { delay: 200, copy: true });
+                    framesAdded++;
+                    
+                    // Update status
                     const progress = Math.round((frame / totalFrames) * 100);
                     document.getElementById('statusText').textContent = `Generating GIF... ${progress}%`;
+                } catch (err) {
+                    console.error('Frame render error:', err);
                 }
+            }
+            
+            console.log(`Added ${framesAdded} frames to GIF`);
+            
+            if (framesAdded === 0) {
+                reject(new Error('No frames added'));
+                return;
             }
             
             console.log('Rendering GIF...');
             document.getElementById('statusText').textContent = 'Rendering GIF...';
             
             gif.on('finished', function(blob) {
-                console.log('GIF complete:', (blob.size / 1024 / 1024).toFixed(2), 'MB');
+                console.log('✅ GIF complete:', (blob.size / 1024 / 1024).toFixed(2), 'MB');
                 resolve(blob);
             });
             
@@ -528,7 +547,15 @@ async function generateGIF() {
                 document.getElementById('statusText').textContent = `Rendering GIF... ${percent}%`;
             });
             
-            gif.render();
+            gif.on('abort', function() {
+                console.error('GIF rendering aborted');
+                reject(new Error('GIF rendering aborted'));
+            });
+            
+            // Start rendering with timeout
+            setTimeout(() => {
+                gif.render();
+            }, 100);
             
         } catch (err) {
             console.error('GIF generation error:', err);
