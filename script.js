@@ -256,7 +256,7 @@ function renderPFPPhase(ctx, width, height, pfpImg, frame, fps) {
     // PFP FILLS ENTIRE TERMINAL (FULL SIZE - NO MARGINS!)
     const headerHeight = 130; // Header space
     const pfpX = 0; // No left margin
-    const pfpY = headerHeight + 50; // Start right after header
+    const pfpY = headerHeight; // Start right after header
     const pfpWidth = width; // FULL WIDTH
     const pfpHeight = height - headerHeight; // FULL HEIGHT
     
