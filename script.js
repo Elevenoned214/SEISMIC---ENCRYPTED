@@ -218,7 +218,7 @@ function renderTerminalPhase(ctx, width, height, frame, data) {
     lines.forEach(line => {
         if (frame >= line.frame) {
             ctx.fillStyle = line.color;
-            ctx.fillText(line.text, 100, yPos);
+            ctx.fillText(line.text, 75, yPos);
         }
         yPos += 40;
     });
