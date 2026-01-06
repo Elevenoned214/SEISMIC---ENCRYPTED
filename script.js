@@ -60,9 +60,9 @@ async function generateVideo(data) {
     const canvas = document.getElementById('recordCanvas');
     const ctx = canvas.getContext('2d');
     
-    // Set canvas size
-    const canvasWidth = 1920;
-    const canvasHeight = 1080;
+    // Set canvas size (720p for Twitter compatibility)
+    const canvasWidth = 1280;
+    const canvasHeight = 720;
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
     
@@ -75,11 +75,11 @@ async function generateVideo(data) {
     const totalFrames = fps * duration;
     const frameInterval = 1000 / fps; // 33.33ms per frame
     
-    // Setup MediaRecorder with canvas stream
+    // Setup MediaRecorder with canvas stream (Twitter optimized)
     const stream = canvas.captureStream(fps);
     const mediaRecorder = new MediaRecorder(stream, {
         mimeType: 'video/webm;codecs=vp9',
-        videoBitsPerSecond: 8000000 // 8 Mbps
+        videoBitsPerSecond: 5000000 // 5 Mbps (Twitter friendly)
     });
     
     const chunks = [];
